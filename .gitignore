@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/vsserverlisting
+vsserverlisting.so
+vsserverlisting.dylib
+vsserverlisting.dll
+vsserverlisting.a
+vsserverlisting.lib
+vsserverlisting-test-*
+*.exe
+*.o
+*.obj
+*.lst

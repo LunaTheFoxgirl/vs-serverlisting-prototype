@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"Clipsey"
+	],
+	"copyright": "Copyright © 2019, Clipsey",
+	"dependencies": {
+		"vibe-d": "~>0.8.5"
+	},
+	"description": "A server listing backend implementation for vintage story",
+	"license": "BSL-1.0",
+	"name": "vsserverlisting"
+}
