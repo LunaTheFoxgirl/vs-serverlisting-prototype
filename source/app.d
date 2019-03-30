@@ -31,7 +31,7 @@ struct RegisterRequest {
 	string icon;
 }
 
-/// Small helper that allows getting the HTTPRequestInfo directly
+/// Small helper that allows getting the HTTPServerRequest directly
 @safe HTTPServerRequest getRequest(HTTPServerRequest req, HTTPServerResponse res) { 
 	return req; 
 }
@@ -56,7 +56,8 @@ interface IListingAPI {
 	@safe
 	string registerServer(RegisterRequest json, HTTPServerRequest request);
 
-
+	/// Heartbeat function, this should be called in an interval lower than TIMEOUT_TIME, but not too fast either.
+	/// If a server fails to call heartbeat in time, i'll be removed from the list and "invalid" will be returned instead.
 	@method(HTTPMethod.POST)
 	@path("/heartbeat")
 	@safe
@@ -123,7 +124,6 @@ private:
 	}
 
 	@trusted void rebuildCache() {
-		import std.stdio;
 		// clear the list and make a new one with the same amount of indexes as the actual list
 		serverCache = new ServerIndex*[servers.length];
 
@@ -148,8 +148,6 @@ public:
 
 	/// See interface for info
 	string registerServer(RegisterRequest json, HTTPServerRequest request) {
-		import std.stdio;
-		writeln(json);
 
 		// Create a new token and assign the server to it using request to get the calling IP address.
 		string token = newKey();
@@ -160,6 +158,7 @@ public:
 		return token;
 	}
 
+	/// See interface for info
 	string keepAlive(string token) {
 		// If the token is not present in the server dictionary, report it back.
 		if (token !in servers) return "invalid";
@@ -170,6 +169,7 @@ public:
 		return "ok";
 	}
 
+	/// See interface for info
 	ServerIndex*[] getServers() {
 		cleanup();
 		return serverCache;
