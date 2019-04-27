@@ -1,7 +1,7 @@
 import std.stdio;
 import vibe.d;
 import vibe.crypto.cryptorand;
-import vibe.data.serialization : optional;
+import vibe.data.serialization : optional, name;
 import std.socket : SocketOSException;
 import std.base64;
 
@@ -22,6 +22,13 @@ struct Playstyle {
 	string langCode;
 }
 
+struct Mod {
+	string id;
+
+	@name("version")
+	string version_;
+}
+
 /// A index in the server listing.
 struct ServerIndex {
 public:
@@ -34,6 +41,10 @@ public:
 	/// The playstyle
 	@optional
 	Playstyle playstyle;
+
+	/// List of loaded mods
+	@optional
+	Mod[] mods;
 
 	/// the amount of players that can maximum be connected to the server.
 	size_t maxPlayers;
@@ -79,6 +90,7 @@ public:
 	index.playstyle = request.playstyle;
 	index.hasPassword = request.hasPassword;
 	index.gameVersion = request.gameVersion;
+	index.mods = request.mods;
 	index.serverIP = targetIP;
 	index.lastVerified = nowUNIXTime();
 	return index;
@@ -99,6 +111,10 @@ struct RegisterRequest {
 
 	/// The registered playstyle
 	Playstyle playstyle;
+
+	/// List of loaded mods
+	@optional
+	Mod[] mods;
 
 	/// Max number of clients.
 	size_t maxPlayers;
