@@ -14,9 +14,11 @@ enum ALLOW_IPV6 = false;
 /// A registered playstyle
 struct Playstyle {
 	/// Id of playstyle
+	@optional
 	string id;
 
 	/// language code
+	@optional
 	string langCode;
 }
 
