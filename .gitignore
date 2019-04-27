@@ -13,3 +13,5 @@ vsserverlisting-test-*
 *.o
 *.obj
 *.lst
+
+access.log

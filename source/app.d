@@ -7,6 +7,9 @@ import std.base64;
 /// How many minutes before a server will be removed.
 enum TIMEOUT_TIME = 5;
 
+/// If IPv6 addresses are allowed to be mapped
+enum ALLOW_IPV6 = false;
+
 /// A registered playstyle
 struct Playstyle {
 	/// Id of playstyle
@@ -49,9 +52,16 @@ public:
 }
 
 @trusted bool testConnection(string targetIP, ushort port) {
-	TCPConnection tcpConn = connectTCP(targetIP.stripConnectionPort, port);
-	scope(exit) destroy(tcpConn);
-	return tcpConn.connected;
+	try {
+		TCPConnection tcpConn = connectTCP(targetIP.stripConnectionPort, port, null, 0u, 5.seconds);
+		scope(exit) destroy(tcpConn);
+		return tcpConn.connected;
+	} catch(SocketOSException socketException) {
+		throw socketException;	
+	} catch (Exception ex) {
+		writeln(ex);
+		return false;
+	}
 }
 
 @trusted string getTargetIP(string originIP, ushort port) {
@@ -248,8 +258,12 @@ public:
 				break;
 			}
 		}
-
-		if (!testConnection(targetIP, json.port)) return ReturnContext!string("no_connect", null);
+		try {
+			if (!testConnection(targetIP, json.port)) return ReturnContext!string("no_connect", targetIP);
+		} catch(Exception ex) {
+			stderr.writeln("FATAL ERROR: %s", ex.msg);
+			return ReturnContext!string("internal_error", "Your IP is not supported.");
+		}
 
 		// Assign the server to the token using request to get the calling IP address.
 		servers[token] = serverIndexFromRequest(json, targetIP);
@@ -312,7 +326,13 @@ shared static this() {
 
 	auto settings = new HTTPServerSettings();
 	settings.port = 8080;
-	settings.bindAddresses = ["::1", "127.0.0.1"];
+	static if (ALLOW_IPV6) {
+		settings.bindAddresses = ["::", "0.0.0.0"];
+	} else {
+		settings.bindAddresses = ["0.0.0.0"];
+	}
+	settings.accessLogFile = "access.log";
+	settings.accessLogToConsole = true;
 	settings.sessionStore = new MemorySessionStore;
 
 	listenHTTP(settings, router);
