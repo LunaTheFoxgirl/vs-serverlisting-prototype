@@ -1,7 +1,7 @@
 import std.stdio;
 import vibe.d;
 import vibe.crypto.cryptorand;
-import vibe.data.serialization : ignore;
+import vibe.data.serialization : optional;
 import std.base64;
 
 /// How many minutes before a server will be removed.
