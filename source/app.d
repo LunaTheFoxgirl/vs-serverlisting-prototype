@@ -48,6 +48,12 @@ public:
 	bool hasPassword;
 }
 
+@trusted bool testConnection(string targetIP, ushort port) {
+	TCPConnection tcpConn = connectTCP(targetIP.stripConnectionPort, port);
+	scope(exit) destroy(tcpConn);
+	return tcpConn.connected;
+}
+
 @trusted string getTargetIP(string originIP, ushort port) {
 	return "%s:%d".format(originIP.stripConnectionPort, port);
 }
@@ -68,7 +74,8 @@ public:
 /// wrapper for the JSON input data.
 struct RegisterRequest {
 	/// Port the server is on
-	ushort port;
+	@optional
+	ushort port = 42420;
 
 	/// Name to be displayed
 	string name;
@@ -232,6 +239,8 @@ public:
 				break;
 			}
 		}
+
+		if (!testConnection(targetIP, json.port)) return "no_connect";
 
 		// Assign the server to the token using request to get the calling IP address.
 		servers[token] = serverIndexFromRequest(json, targetIP);
