@@ -46,7 +46,11 @@ public:
 	bool hasPassword;
 }
 
-@trusted ServerIndex* serverIndexFromRequest(RegisterRequest request, string originIP) {
+@trusted string getTargetIP(string originIP, ushort port) {
+	return "%s:%d".format(originIP.stripConnectionPort, port);
+}
+
+@trusted ServerIndex* serverIndexFromRequest(RegisterRequest request, string targetIP) {
 	ServerIndex* index = new ServerIndex();
 	index.maxPlayers = request.maxPlayers;
 	index.serverName = request.name;
@@ -54,7 +58,7 @@ public:
 	index.playstyle = request.playstyle;
 	index.hasPassword = request.hasPassword;
 	index.gameVersion = request.gameVersion;
-	index.serverIP = "%s:%d".format(originIP, request.port);
+	index.serverIP = targetIP;
 	index.lastVerified = nowUNIXTime();
 	return index;
 }
@@ -215,9 +219,19 @@ public:
 	/// See interface for info
 	string registerServer(RegisterRequest json, HTTPServerRequest request) {
 
-		// Create a new token and assign the server to it using request to get the calling IP address.
 		string token = newKey();
-		servers[token] = serverIndexFromRequest(json, request.peer().stripConnectionPort);
+		string targetIP = getTargetIP(request.peer(), json.port);
+
+		// If the server is already registered for some reason, use its token
+		foreach(extoken, server; servers) {
+			if (server.serverIP == targetIP) {
+				token = extoken;
+				break;
+			}
+		}
+
+		// Assign the server to the token using request to get the calling IP address.
+		servers[token] = serverIndexFromRequest(json, targetIP);
 
 		// Rebuild the server cache and return the new token.
 		rebuildCache();
