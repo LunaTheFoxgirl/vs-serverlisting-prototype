@@ -245,6 +245,8 @@ public:
 
 		// Do cleanup and update the heartbeat time.
 		cleanup();
+		if (keepalive.token !in servers) return "timeout";
+		
 		servers[keepalive.token].players = keepalive.players;
 		servers[keepalive.token].lastVerified = nowUNIXTime();
 		return "ok";
