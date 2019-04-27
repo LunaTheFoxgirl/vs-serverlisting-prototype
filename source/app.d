@@ -6,29 +6,89 @@ import std.base64;
 /// How many minutes before a server will be removed.
 enum TIMEOUT_TIME = 5;
 
+/// A registered playstyle
+struct Playstyle {
+	/// Id of playstyle
+	string id;
+
+	/// language code
+	string langCode;
+}
+
 /// A index in the server listing.
 struct ServerIndex {
 public:
 	/// Name of the server
 	string serverName;
 
-	/// The IP address of the server
+	/// The IP address of the server (including port)
 	string serverIP;
+
+	/// The playstyle
+	Playstyle playstyle;
+
+	/// the amount of players that can maximum be connected to the server.
+	size_t maxPlayers;
+
+	/// The amount of players currently playing
+	size_t players;
+
+	/// The version of Vintage Story the server uses
+	string gameVersion;
 
 	/// Reserved: Logo for the server in the listing
 	string serverLogo;
 
 	/// When the server was last verified to be online, as UNIX time
 	long lastVerified;
+
+	/// Has password?
+	bool hasPassword;
+}
+
+@trusted ServerIndex* serverIndexFromRequest(RegisterRequest request, string originIP) {
+	ServerIndex* index = new ServerIndex();
+	index.maxPlayers = request.maxPlayers;
+	index.serverName = request.name;
+	index.serverLogo = request.icon;
+	index.playstyle = request.playstyle;
+	index.hasPassword = request.hasPassword;
+	index.gameVersion = request.gameVersion;
+	index.serverIP = "%s:%d".format(originIP, request.port);
+	index.lastVerified = nowUNIXTime();
+	return index;
 }
 
 /// wrapper for the JSON input data.
 struct RegisterRequest {
+	/// Port the server is on
 	ushort port;
 
+	/// Name to be displayed
 	string name;
 
+	/// Reserved: Icon of the server
 	string icon;
+
+	/// The registered playstyle
+	Playstyle playstyle;
+
+	/// Max number of clients.
+	size_t maxPlayers;
+
+	/// Version of the game
+	string gameVersion;
+
+	/// Has password?
+	bool hasPassword;
+}
+
+struct KeepAlivePacket {
+	/// Token
+	string token;
+
+	/// The active player count
+	size_t players;
 }
 
 /// Small helper that allows getting the HTTPServerRequest directly
@@ -59,9 +119,15 @@ interface IListingAPI {
 	/// Heartbeat function, this should be called in an interval lower than TIMEOUT_TIME, but not too fast either.
 	/// If a server fails to call heartbeat in time, i'll be removed from the list and "invalid" will be returned instead.
 	@method(HTTPMethod.POST)
+	@bodyParam("keepalive")
 	@path("/heartbeat")
 	@safe
-	string keepAlive(string token);
+	string keepAlive(KeepAlivePacket keepalive);
+
+	@method(HTTPMethod.POST)
+	@path("/unregister")
+	@bodyParam("token")
+	string unregisterServer(string token);
 
 	/// Gets the server list
 	@method(HTTPMethod.GET)
@@ -151,7 +217,7 @@ public:
 
 		// Create a new token and assign the server to it using request to get the calling IP address.
 		string token = newKey();
-		servers[token] = new ServerIndex(json.name, "%s:%d".format(request.peer().stripConnectionPort, json.port), json.icon, nowUNIXTime());
+		servers[token] = serverIndexFromRequest(json, request.peer().stripConnectionPort);
 
 		// Rebuild the server cache and return the new token.
 		rebuildCache();
@@ -159,13 +225,21 @@ public:
 	}
 
 	/// See interface for info
-	string keepAlive(string token) {
+	string keepAlive(KeepAlivePacket keepalive) {
 		// If the token is not present in the server dictionary, report it back.
-		if (token !in servers) return "invalid";
+		if (keepalive.token !in servers) return "invalid";
 
 		// Do cleanup and update the heartbeat time.
 		cleanup();
-		servers[token].lastVerified = nowUNIXTime();
+		servers[keepalive.token].players = keepalive.players;
+		servers[keepalive.token].lastVerified = nowUNIXTime();
+		return "ok";
+	}
+
+	string unregisterServer(string token) {
+		if (token !in servers) return "invalid";
+		servers[token].lastVerified = 0;
+		cleanup();
 		return "ok";
 	}
 
@@ -178,7 +252,7 @@ public:
 
 
 void main() {
-	
+
 	/// Throw useful exceptions on Linux if a memory/segfault happens
 	version(linux) {
 		import etc.linux.memoryerror;
