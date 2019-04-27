@@ -2,6 +2,7 @@ import std.stdio;
 import vibe.d;
 import vibe.crypto.cryptorand;
 import vibe.data.serialization : optional;
+import std.socket : SocketOSException;
 import std.base64;
 
 /// How many minutes before a server will be removed.
@@ -59,7 +60,6 @@ public:
 	} catch(SocketOSException socketException) {
 		throw socketException;	
 	} catch (Exception ex) {
-		writeln(ex);
 		return false;
 	}
 }
@@ -261,7 +261,9 @@ public:
 		try {
 			if (!testConnection(targetIP, json.port)) return ReturnContext!string("no_connect", targetIP);
 		} catch(Exception ex) {
-			stderr.writeln("FATAL ERROR: %s", ex.msg);
+
+			// Log error
+			() @trusted{ stderr.writeln("FATAL ERROR: %s", ex.msg); }();
 			return ReturnContext!string("internal_error", "Your IP is not supported.");
 		}
 
