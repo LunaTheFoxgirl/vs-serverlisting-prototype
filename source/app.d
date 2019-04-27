@@ -32,6 +32,7 @@ public:
 	string serverIP;
 
 	/// The playstyle
+	@optional
 	Playstyle playstyle;
 
 	/// the amount of players that can maximum be connected to the server.
