@@ -97,6 +97,15 @@ struct RegisterRequest {
 	bool hasPassword;
 }
 
+struct ReturnContext(T) {
+	/// status message
+	string status;
+
+	@optional
+	/// Data associated
+	T data;
+}
+
 struct KeepAlivePacket {
 	/// Token
 	string token;
@@ -128,7 +137,7 @@ interface IListingAPI {
 	@bodyParam("json")
 	@path("/register")
 	@safe
-	string registerServer(RegisterRequest json, HTTPServerRequest request);
+	ReturnContext!string registerServer(RegisterRequest json, HTTPServerRequest request);
 
 	/// Heartbeat function, this should be called in an interval lower than TIMEOUT_TIME, but not too fast either.
 	/// If a server fails to call heartbeat in time, i'll be removed from the list and "invalid" will be returned instead.
@@ -136,18 +145,18 @@ interface IListingAPI {
 	@bodyParam("keepalive")
 	@path("/heartbeat")
 	@safe
-	string keepAlive(KeepAlivePacket keepalive);
+	ReturnContext!string keepAlive(KeepAlivePacket keepalive);
 
 	@method(HTTPMethod.POST)
 	@path("/unregister")
 	@bodyParam("token")
-	string unregisterServer(string token);
+	ReturnContext!string unregisterServer(string token);
 
 	/// Gets the server list
 	@method(HTTPMethod.GET)
 	@path("/list")
 	@safe
-	ServerIndex*[] getServers();
+	ReturnContext!(ServerIndex*[]) getServers();
 }
 
 /// Gets the current time in UNIX time
@@ -227,7 +236,7 @@ public:
 	}
 
 	/// See interface for info
-	string registerServer(RegisterRequest json, HTTPServerRequest request) {
+	ReturnContext!string registerServer(RegisterRequest json, HTTPServerRequest request) {
 
 		string token = newKey();
 		string targetIP = getTargetIP(request.peer(), json.port);
@@ -240,41 +249,45 @@ public:
 			}
 		}
 
-		if (!testConnection(targetIP, json.port)) return "no_connect";
+		if (!testConnection(targetIP, json.port)) return ReturnContext!string("no_connect", null);
 
 		// Assign the server to the token using request to get the calling IP address.
 		servers[token] = serverIndexFromRequest(json, targetIP);
 
 		// Rebuild the server cache and return the new token.
 		rebuildCache();
-		return token;
+		return ReturnContext!string("ok", token);
 	}
 
 	/// See interface for info
-	string keepAlive(KeepAlivePacket keepalive) {
+	ReturnContext!string keepAlive(KeepAlivePacket keepalive) {
 		// If the token is not present in the server dictionary, report it back.
-		if (keepalive.token !in servers) return "invalid";
+		if (keepalive.token !in servers) return ReturnContext!string("invalid", null);
 
 		// Do cleanup and update the heartbeat time.
 		cleanup();
-		if (keepalive.token !in servers) return "timeout";
+		if (keepalive.token !in servers) return ReturnContext!string("timeout", null);
 
 		servers[keepalive.token].players = keepalive.players;
 		servers[keepalive.token].lastVerified = nowUNIXTime();
-		return "ok";
+		return ReturnContext!string("ok", keepalive.token);
 	}
 
-	string unregisterServer(string token) {
-		if (token !in servers) return "invalid";
+	ReturnContext!string unregisterServer(string token) {
+		if (token !in servers) return ReturnContext!string("invalid", null);
 		servers[token].lastVerified = 0;
 		cleanup();
-		return "ok";
+		return ReturnContext!string("ok", null);
 	}
 
 	/// See interface for info
-	ServerIndex*[] getServers() {
-		cleanup();
-		return serverCache;
+	ReturnContext!(ServerIndex*[]) getServers() {
+		try {
+			cleanup();
+			return ReturnContext!(ServerIndex*[])("ok", serverCache);
+		} catch (Exception ex) {
+			return ReturnContext!(ServerIndex*[])("internal_error", []);
+		}
 	}
 }
 
