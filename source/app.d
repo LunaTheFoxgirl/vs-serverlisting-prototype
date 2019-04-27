@@ -1,6 +1,7 @@
 import std.stdio;
 import vibe.d;
 import vibe.crypto.cryptorand;
+import vibe.data.serialization : ignore;
 import std.base64;
 
 /// How many minutes before a server will be removed.
@@ -37,6 +38,7 @@ public:
 	string gameVersion;
 
 	/// Reserved: Logo for the server in the listing
+	@optional
 	string serverLogo;
 
 	/// When the server was last verified to be online, as UNIX time
@@ -72,6 +74,7 @@ struct RegisterRequest {
 	string name;
 
 	/// Reserved: Icon of the server
+	@optional
 	string icon;
 
 	/// The registered playstyle
@@ -246,7 +249,7 @@ public:
 		// Do cleanup and update the heartbeat time.
 		cleanup();
 		if (keepalive.token !in servers) return "timeout";
-		
+
 		servers[keepalive.token].players = keepalive.players;
 		servers[keepalive.token].lastVerified = nowUNIXTime();
 		return "ok";
