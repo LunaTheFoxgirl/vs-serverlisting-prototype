@@ -178,10 +178,13 @@ public:
 
 
 void main() {
+	
 	/// Throw useful exceptions on Linux if a memory/segfault happens
-	import etc.linux.memoryerror;
-	static if (is(typeof(registerMemoryErrorHandler)))
-		registerMemoryErrorHandler();
+	version(linux) {
+		import etc.linux.memoryerror;
+		static if (is(typeof(registerMemoryErrorHandler)))
+			registerMemoryErrorHandler();
+	}
 
 	/// Run the core server loop
 	runApplication();
